@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8"> <!-- кодировка страницы -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"> <!-- адаптивность под экраны -->
+  <title>Movie Watchlist</title> <!-- заголовок вкладки -->
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font@7.x/css/materialdesignicons.min.css"> <!-- иконки, нужны vuetify -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/vuetify@3.7.0/dist/vuetify.min.css"> <!-- стили vuetify -->
+</head>
+
+<body>
+
+  <div id="app"> <!-- корневой элемент приложения -->
+    <v-app> <!-- обязательная обёртка vuetify, без неё компоненты работают некорректно -->
+
+      <v-app-bar color="deep-purple-darken-2"> <!-- верхняя панель -->
+        <v-app-bar-title>My Movie Watchlist</v-app-bar-title> <!-- название приложения -->
+        <v-spacer></v-spacer> <!-- растягивает пространство, прижимает кнопку вправо -->
+        <v-btn variant="elevated" color="white" @click="open_form">
+          <v-icon start>mdi-plus</v-icon> Add Movie
+        </v-btn> <!-- кнопка открытия формы добавления фильма -->
+      </v-app-bar>
+
+      <v-main> <!-- основная область контента -->
+        <v-container class="py-6"> <!-- контейнер с отступами -->
+
+          <v-row v-if="movies.length === 0"> <!-- показываем подсказку, если список пуст -->
+            <v-col>
+              <p class="text-center text-grey">The list is empty. Add your first movie!</p>
+            </v-col>
+          </v-row>
+
+          <v-row> <!-- сетка карточек с фильмами -->
+            <v-col
+              v-for="movie in movies"
+              :key="movie.id"
+              cols="12" sm="6" md="4"
+            > <!-- перебираем фильмы, на маленьких экранах карточка на всю ширину -->
+              <v-card :class="{ 'watched-card': movie.watched }"> <!-- добавляем класс, если фильм просмотрен -->
+                <v-card-item>
+                  <v-card-title>{{ movie.title }}</v-card-title> <!-- название фильма -->
+                  <v-card-subtitle>{{ movie.genre }}</v-card-subtitle> <!-- жанр фильма -->
+                </v-card-item>
+
+                <v-card-text>
+                  <v-rating
+                    v-model="movie.rating"
+                    density="compact"
+                    half-increments
+                  ></v-rating> <!-- оценка фильма звёздами, можно менять прямо на карточке -->
+
+                  <v-chip :color="movie.watched ? 'green' : 'orange'" size="small" class="mt-2">
+                    {{ movie.watched ? 'Watched' : 'Plan to watch' }}
+                  </v-chip> <!-- статус просмотра в виде цветного чипа -->
+                </v-card-text>
+
+                <v-card-actions>
+                  <v-switch
+                    v-model="movie.watched"
+                    color="green"
+                    label="Watched"
+                    density="compact"
+                    hide-details
+                  ></v-switch> <!-- переключатель статуса просмотрено/нет -->
+                  <v-spacer></v-spacer>
+                  <v-btn icon="mdi-delete" variant="text" color="red" @click="remove_movie(movie.id)"></v-btn> <!-- кнопка удаления фильма из списка -->
+                </v-card-actions>
+              </v-card>
+            </v-col>
+          </v-row>
+
+        </v-container>
+      </v-main>
+
+      <!-- диалоговое окно с формой добавления нового фильма -->
+      <v-dialog v-model="is_form_open" max-width="500">
+        <v-card>
+          <v-card-title>New Movie</v-card-title>
+          <v-card-text>
+            <v-text-field
+              v-model="new_movie_title"
+              label="Movie title"
+              autofocus
+            ></v-text-field> <!-- поле ввода названия фильма -->
+
+            <v-select
+              v-model="new_movie_genre"
+              :items="genre_options"
+              label="Genre"
+            ></v-select> <!-- выпадающий список жанров -->
+          </v-card-text>
+          <v-card-actions>
+            <v-spacer></v-spacer>
+            <v-btn variant="text" @click="close_form">Cancel</v-btn> <!-- отмена, закрывает окно без сохранения -->
+            <v-btn
+              color="deep-purple-darken-2"
+              variant="elevated"
+              :disabled="new_movie_title.length === 0"
+              @click="save_movie"
+            >Save</v-btn> <!-- сохранение нового фильма, неактивна пока не введено название -->
+          </v-card-actions>
+        </v-card>
+      </v-dialog>
+
+    </v-app>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/vue@3.4.31/dist/vue.global.js"></script> <!-- подключаем vue 3 -->
+  <script src="https://cdn.jsdelivr.net/npm/vuetify@3.7.0/dist/vuetify.min.js"></script> <!-- подключаем vuetify -->
+  <script>
+
+    const { createApp } = Vue // достаём функцию создания приложения из глобального объекта Vue
+    const { createVuetify } = Vuetify // достаём функцию создания плагина vuetify
+
+    const vuetify = createVuetify() // создаём экземпляр vuetify с настройками по умолчанию
+
+    createApp({
+      data() {
+        return {
+          is_form_open: false, // флаг, открыто ли диалоговое окно добавления
+          new_movie_title: '', // название фильма, которое вводит пользователь
+          new_movie_genre: 'Drama', // жанр нового фильма, по умолчанию drama
+          genre_options: ['Drama', 'Comedy', 'Action', 'Sci-Fi', 'Horror', 'Animation'], // варианты жанров для v-select
+          movies: [ // начальный список фильмов
+            { id: 1, title: 'Inception', genre: 'Sci-Fi', rating: 4.5, watched: true },
+            { id: 2, title: 'The Grand Budapest Hotel', genre: 'Comedy', rating: 4, watched: false },
+            { id: 3, title: 'Whiplash', genre: 'Drama', rating: 5, watched: false }
+          ]
+        }
+      },
+      methods: {
+        open_form() { // открывает окно добавления фильма
+          this.is_form_open = true
+        },
+        close_form() { // закрывает окно и очищает поля формы
+          this.is_form_open = false
+          this.new_movie_title = ''
+          this.new_movie_genre = 'Drama'
+        },
+        save_movie() { // добавляет новый фильм в список
+          if (this.new_movie_title.length === 0) { // не даём сохранить фильм без названия
+            return
+          }
+          this.movies.push({ // добавляем объект нового фильма в массив movies
+            id: Date.now(), // используем текущее время как простой уникальный id
+            title: this.new_movie_title,
+            genre: this.new_movie_genre,
+            rating: 0,
+            watched: false
+          })
+          this.close_form() // закрываем и очищаем форму после сохранения
+        },
+        remove_movie(movie_id) { // удаляет фильм из списка по его id
+          this.movies = this.movies.filter(movie => movie.id !== movie_id)
+        }
+      }
+    })
+      .use(vuetify) // подключаем vuetify как плагин к приложению
+      .mount('#app') // монтируем приложение в элемент с id app
+
+  </script>
+
+  <style>
+    .watched-card {
+      opacity: 0.6; /* приглушаем просмотренные фильмы, чтобы выделить непросмотренные */
+    }
+  </style>
+</body>
+
+</html>
